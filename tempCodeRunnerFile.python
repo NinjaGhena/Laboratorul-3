@@ -1,0 +1,147 @@
+from abc import ABC, abstractmethod
+import random
+
+# ---------------------------
+# Clasa abstractă EntitateEcosistem
+# ---------------------------
+class EntitateEcosistem(ABC):
+    def __init__(self, nume, energie, pozitie_x, pozitie_y, rata_supravietuire):
+        self.nume = nume
+        self.energie = energie
+        self.pozitie_x = pozitie_x
+        self.pozitie_y = pozitie_y
+        self.rata_supravietuire = rata_supravietuire
+
+    @abstractmethod
+    def actioneaza(self):
+        pass
+
+    def pozitie(self):
+        return self.pozitie_x, self.pozitie_y
+
+# ---------------------------
+# Clasa Planta
+# ---------------------------
+class Planta(EntitateEcosistem):
+    def __init__(self, nume, energie, pozitie_x, pozitie_y, rata_supravietuire):
+        super().__init__(nume, energie, pozitie_x, pozitie_y, rata_supravietuire)
+
+    def actioneaza(self):
+        # Planta crește
+        self.energie += 5
+
+    def reproduce(self):
+        # Creează o nouă plantă în apropiere
+        if self.energie > 20:
+            self.energie -= 10
+            return Planta(
+                f"{self.nume}_copil",
+                10,
+                self.pozitie_x + random.randint(-1, 1),
+                self.pozitie_y + random.randint(-1, 1),
+                self.rata_supravietuire,
+            )
+
+# ---------------------------
+# Clasa abstractă Animal
+# ---------------------------
+class Animal(EntitateEcosistem):
+    def __init__(self, nume, energie, pozitie_x, pozitie_y, rata_supravietuire, viteza, tip_hrana):
+        super().__init__(nume, energie, pozitie_x, pozitie_y, rata_supravietuire)
+        self.viteza = viteza
+        self.tip_hrana = tip_hrana
+
+    def deplaseaza(self):
+        # Animalul se deplasează
+        self.pozitie_x += random.randint(-self.viteza, self.viteza)
+        self.pozitie_y += random.randint(-self.viteza, self.viteza)
+
+    def actioneaza(self):
+        # Animalul se deplasează și își pierde energie
+        self.deplaseaza()
+        self.energie -= 1
+
+    def mananca(self, prada):
+        if isinstance(prada, EntitateEcosistem):
+            self.energie += prada.energie
+            prada.energie = 0  # Prada moare
+
+# ---------------------------
+# Clasele Erbivor, Carnivor, Omnivor
+# ---------------------------
+class Erbivor(Animal):
+    def __init__(self, nume, energie, pozitie_x, pozitie_y, rata_supravietuire, viteza):
+        super().__init__(nume, energie, pozitie_x, pozitie_y, rata_supravietuire, viteza, "plante")
+
+class Carnivor(Animal):
+    def __init__(self, nume, energie, pozitie_x, pozitie_y, rata_supravietuire, viteza):
+        super().__init__(nume, energie, pozitie_x, pozitie_y, rata_supravietuire, viteza, "animale")
+
+class Omnivor(Animal):
+    def __init__(self, nume, energie, pozitie_x, pozitie_y, rata_supravietuire, viteza):
+        super().__init__(nume, energie, pozitie_x, pozitie_y, rata_supravietuire, viteza, "mixt")
+
+# ---------------------------
+# Clasa Ecosistem
+# ---------------------------
+class Ecosistem:
+    def __init__(self, dimensiune_harta_x, dimensiune_harta_y):
+        self.dimensiune_harta_x = dimensiune_harta_x
+        self.dimensiune_harta_y = dimensiune_harta_y
+        self.entitati = []
+
+    def adauga_entitate(self, entitate):
+        self.entitati.append(entitate)
+
+    def elimina_entitate(self, entitate):
+        self.entitati.remove(entitate)
+
+    def simuleaza_pas(self):
+        for entitate in self.entitati[:]:
+            entitate.actioneaza()
+            if entitate.energie <= 0:
+                self.elimina_entitate(entitate)
+            # Interacțiuni erbivore și plante
+            if isinstance(entitate, Erbivor):
+                for planta in self.entitati:
+                    if isinstance(planta, Planta) and entitate.pozitie() == planta.pozitie():
+                        entitate.mananca(planta)
+
+            # Interacțiuni carnivore și prăzi
+            if isinstance(entitate, Carnivor):
+                for prada in self.entitati:
+                    if isinstance(prada, Animal) and prada != entitate and entitate.pozitie() == prada.pozitie():
+                        entitate.mananca(prada)
+
+    def afiseaza_stare(self):
+        for entitate in self.entitati:
+            print(
+                f"{entitate.nume} ({entitate.__class__.__name__}) - Energie: {entitate.energie}, Pozitie: {entitate.pozitie()}"
+            )
+
+# ---------------------------
+# Program Principal
+# ---------------------------
+if __name__ == "__main__":
+    ecosistem = Ecosistem(100, 100)
+
+    # Adăugăm plante
+    for i in range(5):
+        planta = Planta(f"Planta{i+1}", 15, random.randint(0, 100), random.randint(0, 100), 0.8)
+        ecosistem.adauga_entitate(planta)
+
+    # Adăugăm erbivore
+    for i in range(3):
+        erbivor = Erbivor(f"Iepure{i+1}", 30, random.randint(0, 100), random.randint(0, 100), 0.9, 3)
+        ecosistem.adauga_entitate(erbivor)
+
+    # Adăugăm carnivore
+    for i in range(2):
+        carnivor = Carnivor(f"Lup{i+1}", 40, random.randint(0, 100), random.randint(0, 100), 0.7, 5)
+        ecosistem.adauga_entitate(carnivor)
+
+    # Simulăm pașii
+    for pas in range(10):
+        print(f"\nPASUL {pas + 1}")
+        ecosistem.simuleaza_pas()
+        ecosistem.afiseaza_stare()
